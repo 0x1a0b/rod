@@ -146,6 +146,26 @@ func (s *S) TestHijackFailRequest() {
 	s.Equal("Failed to fetch", s.page.Element("body").Text())
 }
 
+func (s *S) TestHijackErrs() {
+	url, engine, close := serve()
+	defer close()
+
+	engine.GET("/", ginString(`ok`))
+
+	router := s.browser.HijackRequests()
+	defer router.Stop()
+
+	router.Add(url+"/a", func(ctx *rod.Hijack) {
+		ctx.Response.Fail(proto.NetworkErrorReasonAborted)
+	})
+
+	go router.Run()
+
+	s.page.Navigate(url)
+
+	s.Equal("Failed to fetch", s.page.Element("body").Text())
+}
+
 func (s *S) TestHandleAuth() {
 	url, engine, close := serve()
 	defer close()

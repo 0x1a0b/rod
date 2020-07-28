@@ -118,6 +118,8 @@ func (s *S) TestMonitor() {
 
 	page.Navigate("http://" + host + "/page/" + string(p.TargetID))
 	s.Contains(page.Eval(`document.title`).Str, p.TargetID)
+
+	s.Equal(400, kit.Req("http://"+host+"/api/page/test").MustResponse().StatusCode)
 }
 
 func (s *S) TestRemoteLaunch() {
