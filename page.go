@@ -416,6 +416,33 @@ func (p *Page) EvalOnNewDocumentE(js string) (proto.PageScriptIdentifier, error)
 	return res.Identifier, nil
 }
 
+// ExposeE function to the page's window object.
+func (p *Page) ExposeE(name string) (callback chan string, stop func(), err error) {
+	err = proto.RuntimeAddBinding{Name: name}.Call(p)
+	if err != nil {
+		return
+	}
+
+	callback = make(chan string)
+	ctx, cancel := context.WithCancel(p.ctx)
+	stop = func() {
+		cancel()
+		_ = proto.RuntimeRemoveBinding{Name: name}.Call(p)
+	}
+
+	go p.EachEvent(func(e *proto.RuntimeBindingCalled) {
+		if e.Name == name {
+			select {
+			case <-ctx.Done():
+				return
+			case callback <- e.Payload:
+			}
+		}
+	})()
+
+	return
+}
+
 // EvalE thisID is the remote objectID that will be the this of the js function, if it's empty "window" will be used.
 // Set the byValue to true to reduce memory occupation.
 // If the item in jsArgs is proto.RuntimeRemoteObjectID, the remote object will be used, else the item will be treated as JSON value.
@@ -472,8 +499,8 @@ func (p *Page) EvalE(byValue bool, thisID proto.RuntimeRemoteObjectID, js string
 	}
 
 	if res.ExceptionDetails != nil {
-		exp := res.ExceptionDetails.Exception.Description
-		return nil, fmt.Errorf("%w: %s", newErr(ErrEval, exp), exp)
+		exp := res.ExceptionDetails.Exception
+		return nil, fmt.Errorf("%w: %s %s", newErr(ErrEval, exp), exp.Description, exp.Value.String())
 	}
 
 	return res.Result, nil

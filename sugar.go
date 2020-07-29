@@ -275,6 +275,13 @@ func (p *Page) EvalOnNewDocument(js string) {
 	kit.E(err)
 }
 
+// Expose function to the page's window object.
+func (p *Page) Expose(name string) (callback chan string, stop func()) {
+	c, s, err := p.ExposeE(name)
+	kit.E(err)
+	return c, s
+}
+
 // Eval js on the page. The first param must be a js function definition.
 // For example page.Eval(`n => n + 1`, 1) will return 2
 func (p *Page) Eval(js string, params ...interface{}) proto.JSON {
